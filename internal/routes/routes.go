@@ -1,8 +1,8 @@
 package routes
 
 import (
-	"project/internal/handlers"
-	"project/internal/middleware"
+	"github.com/hanxi/gamepass-local/internal/handlers"
+	"github.com/hanxi/gamepass-local/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/mongo"

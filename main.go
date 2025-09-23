@@ -6,9 +6,10 @@ import (
 	"log"
 	"os"
 
-	"project/internal/db"
-	"project/internal/routes"
+	"github.com/hanxi/gamepass-local/internal/db"
+	"github.com/hanxi/gamepass-local/internal/routes"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/mongo/mongodriver"
 	"github.com/gin-contrib/static"
@@ -31,6 +32,7 @@ func main() {
 	)
 	r := gin.Default()
 	r.Use(sessions.Sessions("mysession", store))
+	r.Use(cors.Default())
 
 	// 前端静态资源
 	fs, err := static.EmbedFolder(embeddedFiles, "public")

@@ -5,7 +5,8 @@ import (
 	"net/http"
 	"os"
 
-	"project/internal/models"
+	"github.com/hanxi/gamepass-local/internal/db"
+	"github.com/hanxi/gamepass-local/internal/models"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"

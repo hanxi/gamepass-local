@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"project/internal/models"
+	"github.com/hanxi/gamepass-local/internal/models"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
