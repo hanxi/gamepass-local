@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"os"
 
-	"project/internal/db"
 	"project/internal/models"
 
 	"github.com/gin-contrib/sessions"
@@ -13,20 +12,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
-
-func AdminUsers(c *gin.Context) {
-	var users []models.User
-	cursor, err := db.DB.Collection("users").Find(context.TODO(), bson.M{})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to query users"})
-		return
-	}
-	if err = cursor.All(context.TODO(), &users); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to decode users"})
-		return
-	}
-	c.JSON(http.StatusOK, users)
-}
 
 type AdminHandler struct {
 	userCol *mongo.Collection
