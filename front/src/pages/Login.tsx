@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
 
-export default function Login({ onSuccess, onRegister }: {onSuccess: () => void; onRegister: () => void}) {
+export default function Login({ onSuccess, onRegister }: {onSuccess: (isAdmin: boolean) => void; onRegister: () => void}) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
 
   const handleLogin = async () => {
+    console.log('Starting login process...');
     let endpoint;
     if (isAdmin) {
+      console.log('Using admin login endpoint.');
       endpoint = '/api/admin/login';
     } else {
+      console.log('Using regular login endpoint.');
       endpoint = '/api/auth/login';
     }
 
@@ -21,11 +24,15 @@ export default function Login({ onSuccess, onRegister }: {onSuccess: () => void;
 
     if (res.ok) {
       if (isAdmin) {
-        onSuccess();
+        console.log('Admin login successful.');
+        setIsAdmin(true);
+        onSuccess(isAdmin);
       } else {
-        onSuccess();
+        console.log('Regular login successful.');
+        onSuccess(isAdmin);
       }
     } else {
+      console.log('Login failed.');
       alert('Login failed');
     }
   };

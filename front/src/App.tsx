@@ -9,7 +9,12 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-base-200">
-      {page === 'login' && <Login onSuccess={() => setPage(isAdmin ? 'admin' : 'userwelcome')} onRegister={() => setPage('register')} />}
+      {page === 'login' && 
+        <Login 
+          onSuccess={(isAdmin: boolean) => setPage(isAdmin ? 'admin' : 'userwelcome')}
+          onRegister={() => setPage('register')}
+        />
+      }
       {page === 'admin' && <Admin onLogout={() => setPage('login')} />}
       {page === 'register' && <Register onSuccess={() => setPage('login')} />}
       {page === 'userwelcome' && <UserWelcome />}

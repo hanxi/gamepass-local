@@ -1,15 +1,15 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react';
 
 interface User {
-  username: string
+  username: string;
 }
 
-export default function Admin() {
-  const [users, setUsers] = useState<User[]>([])
+export default function Admin({ onLogout }: { onLogout: () => void }) {
+  const [users, setUsers] = useState<User[]>([]);
 
   useEffect(() => {
-    fetch('/api/admin/users').then(res => res.json()).then(setUsers)
-  }, [])
+    fetch('/api/admin/users').then(res => res.json()).then(setUsers);
+  }, []);
 
   return (
     <div className="p-6 bg-white rounded shadow-md w-full max-w-lg">
@@ -19,6 +19,8 @@ export default function Admin() {
           <li key={i} className="border-b py-1">{u.username}</li>
         ))}
       </ul>
+      {/* 添加退出按钮 */}
+      <button className="btn btn-primary mt-4" onClick={onLogout}>Logout</button>
     </div>
-  )
+  );
 }
