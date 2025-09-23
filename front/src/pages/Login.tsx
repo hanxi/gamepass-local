@@ -17,12 +17,40 @@ export default function Login({ onSuccess }: { onSuccess: () => void }) {
     }
   }
 
+  // 包装 handleLogin 以防止表单提交时页面重新加载
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    handleLogin()
+  }
+
   return (
-    <div className="p-6 bg-white rounded shadow-md w-80">
-      <h2 className="text-xl mb-4">Admin Login</h2>
-      <input className="border w-full p-2 mb-2" placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} />
-      <input className="border w-full p-2 mb-2" placeholder="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
-      <button onClick={handleLogin} className="bg-blue-500 text-white px-4 py-2 rounded w-full">Login</button>
+    // 使用 daisyUI 的 Card 组件
+    <div className="card w-96 bg-base-100 shadow-xl">
+      <div className="card-body">
+        <h2 className="card-title">Admin Login</h2>
+        <form onSubmit={handleSubmit}>
+          {/* 使用 daisyUI 的 Input 组件 */}
+          <input
+            type="text"
+            placeholder="Username"
+            className="input input-bordered w-full mt-4"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            className="input input-bordered w-full mt-2"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          {/* 使用 daisyUI 的 Button 组件 */}
+          <button type="submit" className="btn btn-primary w-full mt-4">
+            Login
+          </button>
+        </form>
+      </div>
     </div>
   )
 }
+

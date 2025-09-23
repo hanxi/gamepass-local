@@ -1,2 +1,4 @@
 [entrypoints]
   index = "src/main.tsx"
+[serve.static]
+  plugins = ["bun-plugin-tailwind"]

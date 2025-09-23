@@ -1,14 +1,15 @@
-import React from 'react'
-import { useState } from 'react'
+import React, { useState } from 'react'
 import Login from './pages/Login'
 import Admin from './pages/Admin'
 
 export default function App() {
   const [page, setPage] = useState<'login' | 'admin'>('login')
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+    <div className="min-h-screen bg-base-200">
       {page === 'login' && <Login onSuccess={() => setPage('admin')} />}
-      {page === 'admin' && <Admin />}
+      {page === 'admin' && <Admin onLogout={() => setPage('login')} />}
     </div>
   )
 }
+
