@@ -19,10 +19,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-var (
-	fositeStore *storage.FositeStore
-)
-
 func main() {
 	// Load .env file
 	if err := godotenv.Load(); err != nil {
@@ -45,7 +41,6 @@ func main() {
 	refreshTokenLifetime := parseDuration(getEnv("REFRESH_TOKEN_LIFETIME", "604800"))
 
 	// Initialize stores
-	// fositeStore = storage.NewFositeStore()
 	fositeStore := fs.NewExampleStore()
 	userStore := storage.NewUserStore()
 
