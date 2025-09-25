@@ -117,7 +117,11 @@
         </form>
         
         <div class="links">
+            {{if .RedirectURL}}
+            <p>Don't have an account? <a href="/register?redirect_url={{.RedirectURL}}">Register here</a></p>
+            {{else}}
             <p>Don't have an account? <a href="/register">Register here</a></p>
+            {{end}}
         </div>
     </div>
 </body>

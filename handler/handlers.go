@@ -41,8 +41,14 @@ func InitUserHandlers(us *storage.UserStore, provider fosite.OAuth2Provider) {
 // RegisterHandler handles user registration
 func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
-		// Show registration form
-		templates.ExecuteTemplate(w, "register.html", nil)
+		// Get redirect_url from query parameters
+		redirectURL := r.URL.Query().Get("redirect_url")
+		log.Printf("[RegisterHandler] GET request, redirect_url: %s", redirectURL)
+
+		// Show registration form with redirect_url
+		templates.ExecuteTemplate(w, "register.html", map[string]string{
+			"RedirectURL": redirectURL,
+		})
 		return
 	}
 
@@ -50,14 +56,16 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		username := r.FormValue("username")
 		password := r.FormValue("password")
 		confirmPassword := r.FormValue("confirm_password")
+		redirectURL := r.FormValue("redirect_url")
 
-		log.Printf("[RegisterHandler] Registration attempt for username: %s", username)
+		log.Printf("[RegisterHandler] Registration attempt for username: %s, redirect_url: %s", username, redirectURL)
 
 		// Validate input
 		if username == "" || password == "" {
 			log.Printf("[RegisterHandler] Validation failed: empty username or password")
 			templates.ExecuteTemplate(w, "register.html", map[string]string{
-				"Error": "Username and password are required",
+				"Error":       "Username and password are required",
+				"RedirectURL": redirectURL,
 			})
 			return
 		}
@@ -65,7 +73,8 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		if password != confirmPassword {
 			log.Printf("[RegisterHandler] Validation failed: passwords do not match")
 			templates.ExecuteTemplate(w, "register.html", map[string]string{
-				"Error": "Passwords do not match",
+				"Error":       "Passwords do not match",
+				"RedirectURL": redirectURL,
 			})
 			return
 		}
@@ -75,14 +84,20 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Printf("[RegisterHandler] Registration failed for username %s: %v", username, err)
 			templates.ExecuteTemplate(w, "register.html", map[string]string{
-				"Error": err.Error(),
+				"Error":       err.Error(),
+				"RedirectURL": redirectURL,
 			})
 			return
 		}
 
 		log.Printf("[RegisterHandler] Registration successful for username: %s, userID: %s", username, user.ID)
-		// Redirect to login
-		http.Redirect(w, r, "/login?message=Registration successful", http.StatusSeeOther)
+
+		// Redirect to login with success message and preserve redirect_url
+		loginURL := "/login?message=Registration successful"
+		if redirectURL != "" {
+			loginURL += "&redirect_url=" + url.QueryEscape(redirectURL)
+		}
+		http.Redirect(w, r, loginURL, http.StatusSeeOther)
 	}
 }
 

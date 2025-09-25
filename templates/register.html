@@ -32,7 +32,7 @@
             color: #555;
             font-weight: bold;
         }
-        input[type="text"], input[type="password"] {
+        input[type="text"], input[type="password"], input[type="hidden"] {
             width: 100%;
             padding: 12px;
             border: 1px solid #ddd;
@@ -104,11 +104,17 @@
                 <input type="password" id="confirm_password" name="confirm_password" required>
             </div>
             
+            <input type="hidden" name="redirect_url" value="{{.RedirectURL}}">
+            
             <button type="submit">Register</button>
         </form>
         
         <div class="links">
+            {{if .RedirectURL}}
+            <p>Already have an account? <a href="/login?redirect_url={{.RedirectURL}}">Login here</a></p>
+            {{else}}
             <p>Already have an account? <a href="/login">Login here</a></p>
+            {{end}}
         </div>
     </div>
 </body>
