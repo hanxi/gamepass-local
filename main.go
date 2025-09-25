@@ -48,16 +48,27 @@ func main() {
 		log.Fatalf("Failed to register initial user: %v", err)
 	}
 
-	// Register a client application
-	client := &fosite.DefaultClient{
-		ID:            clientID,
-		Secret:        mustHash(clientSecret),
-		RedirectURIs:  []string{redirectURI},
-		ResponseTypes: []string{"code"},
-		GrantTypes:    []string{"authorization_code", "refresh_token"},
-		Scopes:        []string{"openid", "profile", "offline_access"},
+	// Update the existing client configuration instead of creating a new one
+	if existingClient, ok := fositeStore.Clients[clientID]; ok {
+		if defaultClient, ok := existingClient.(*fosite.DefaultClient); ok {
+			// Update the existing client with environment variables
+			defaultClient.Secret = mustHash(clientSecret)
+			defaultClient.RedirectURIs = []string{redirectURI}
+			log.Printf("Updated existing client configuration for %s", clientID)
+		}
+	} else {
+		// Create new client if it doesn't exist
+		client := &fosite.DefaultClient{
+			ID:            clientID,
+			Secret:        mustHash(clientSecret),
+			RedirectURIs:  []string{redirectURI},
+			ResponseTypes: []string{"code"},
+			GrantTypes:    []string{"authorization_code", "refresh_token"},
+			Scopes:        []string{"openid", "profile", "offline_access"},
+		}
+		fositeStore.Clients[clientID] = client
+		log.Printf("Created new client configuration for %s", clientID)
 	}
-	fositeStore.Clients[clientID] = client
 
 	// Fosite configuration
 	config := &fosite.Config{

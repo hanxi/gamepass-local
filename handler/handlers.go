@@ -3,12 +3,14 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
 	"log"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/hanxi/gamepass-local/storage"
 	"github.com/ory/fosite"
@@ -220,6 +222,11 @@ func AuthorizeHandler(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
+	// Set the ExpiresAt for the session to ensure it's valid
+	session.SetExpiresAt(fosite.AccessToken, time.Now().Add(time.Hour))
+	session.SetExpiresAt(fosite.RefreshToken, time.Now().Add(24*time.Hour))
+	session.SetExpiresAt(fosite.AuthorizeCode, time.Now().Add(10*time.Minute))
+
 	// Handle authorization request
 	ar, err := oauth2Provider.NewAuthorizeRequest(ctx, r)
 	if err != nil {
@@ -266,6 +273,21 @@ func AuthorizeHandler(w http.ResponseWriter, r *http.Request) {
 			log.Printf("[AuthorizeHandler] Fosite error code: %s", fositeErr.ErrorField)
 			log.Printf("[AuthorizeHandler] Fosite error description: %s", fositeErr.DescriptionField)
 			log.Printf("[AuthorizeHandler] Fosite error hint: %s", fositeErr.HintField)
+		}
+
+		// Try to unwrap the error to get the root cause
+		if unwrapped := errors.Unwrap(err); unwrapped != nil {
+			log.Printf("[AuthorizeHandler] Unwrapped error: %v", unwrapped)
+			log.Printf("[AuthorizeHandler] Unwrapped error type: %T", unwrapped)
+		}
+
+		// Try to get the root cause using errors.Cause if available
+		type causer interface {
+			Cause() error
+		}
+		if causeErr, ok := err.(causer); ok {
+			log.Printf("[AuthorizeHandler] Root cause error: %v", causeErr.Cause())
+			log.Printf("[AuthorizeHandler] Root cause error type: %T", causeErr.Cause())
 		}
 
 		// Log request details for debugging

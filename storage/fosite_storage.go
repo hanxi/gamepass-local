@@ -101,10 +101,10 @@ func NewExampleStore() *MemoryStore {
 				ID:             "my-client",
 				Secret:         []byte(`$2a$10$IxMdI6d.LIRZPpSfEwNoeu4rY3FhDREsxFJXikcgdRRAStxUlsuEO`),            // = "foobar"
 				RotatedSecrets: [][]byte{[]byte(`$2y$10$X51gLxUQJ.hGw1epgHTE5u0bt64xM0COU7K9iAp.OFg8p2pUd.1zC `)}, // = "foobaz",
-				RedirectURIs:   []string{"http://localhost:3846/callback"},
-				ResponseTypes:  []string{"id_token", "code", "token", "id_token token", "code id_token", "code token", "code id_token token"},
-				GrantTypes:     []string{"implicit", "refresh_token", "authorization_code", "password", "client_credentials"},
-				Scopes:         []string{"fosite", "openid", "photos", "offline"},
+				RedirectURIs:   []string{"http://home.hanxi.cc:3180/auth/local-oidc/callback"},
+				ResponseTypes:  []string{"code"},
+				GrantTypes:     []string{"authorization_code", "refresh_token"},
+				Scopes:         []string{"openid", "profile", "offline_access"},
 			},
 			"encoded:client": &fosite.DefaultClient{
 				ID:             "encoded:client",
@@ -130,6 +130,7 @@ func NewExampleStore() *MemoryStore {
 		PKCES:                  map[string]fosite.Requester{},
 		AccessTokenRequestIDs:  map[string]string{},
 		RefreshTokenRequestIDs: map[string]string{},
+		BlacklistedJTIs:        map[string]time.Time{},
 		IssuerPublicKeys:       map[string]IssuerPublicKeys{},
 		PARSessions:            map[string]fosite.AuthorizeRequester{},
 	}
