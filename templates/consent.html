@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authorization Consent - OIDC IdP</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 500px;
+            margin: 100px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .user-info {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .client-info {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .scopes {
+            margin: 20px 0;
+        }
+        .scope-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .scope-item:last-child {
+            border-bottom: none;
+        }
+        .scope-name {
+            font-weight: bold;
+            color: #007bff;
+        }
+        .scope-description {
+            color: #666;
+            font-size: 14px;
+            margin-top: 2px;
+        }
+        .buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            text-decoration: none;
+            text-align: center;
+        }
+        .btn-allow {
+            background-color: #28a745;
+            color: white;
+        }
+        .btn-allow:hover {
+            background-color: #218838;
+        }
+        .btn-deny {
+            background-color: #dc3545;
+            color: white;
+        }
+        .btn-deny:hover {
+            background-color: #c82333;
+        }
+        .warning {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Authorization Request</h1>
+        
+        <div class="user-info">
+            <strong>Logged in as:</strong> {{.User.Username}} ({{.User.Email}})
+        </div>
+        
+        <div class="client-info">
+            <strong>Application:</strong> {{.ClientID}}<br>
+            <small>This application is requesting access to your account.</small>
+        </div>
+        
+        <div class="warning">
+            <strong>⚠️ Important:</strong> Only authorize applications you trust. This will give the application access to your account information.
+        </div>
+        
+        <div class="scopes">
+            <h3>Requested Permissions:</h3>
+            {{range .Scopes}}
+            <div class="scope-item">
+                <div class="scope-name">{{.}}</div>
+                <div class="scope-description">
+                    {{if eq . "openid"}}Access to your basic profile information{{end}}
+                    {{if eq . "profile"}}Access to your profile information (name, email){{end}}
+                    {{if eq . "offline_access"}}Keep access when you're not actively using the app{{end}}
+                </div>
+            </div>
+            {{end}}
+        </div>
+        
+        <form method="POST">
+            <input type="hidden" name="query" value="{{.Query}}">
+            <div class="buttons">
+                <button type="submit" name="consent" value="deny" class="btn btn-deny">
+                    Deny Access
+                </button>
+                <button type="submit" name="consent" value="allow" class="btn btn-allow">
+                    Allow Access
+                </button>
+            </div>
+        </form>
+    </div>
+</body>
+</html>
