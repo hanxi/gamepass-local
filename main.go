@@ -7,12 +7,12 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
 
 	"github.com/hanxi/gamepass-local/handler"
 	"github.com/hanxi/gamepass-local/storage"
+	"github.com/hanxi/gamepass-local/utils"
 
 	"github.com/joho/godotenv"
 	"github.com/ory/fosite"
@@ -27,19 +27,19 @@ func main() {
 	}
 
 	// Get configuration from environment variables
-	port := getEnv("PORT", "3000")
-	host := getEnv("HOST", "localhost")
-	systemSecret := []byte(getEnv("SYSTEM_SECRET", "some-cool-secret-that-is-32bytes"))
-	clientID := getEnv("CLIENT_ID", "my-client")
-	// clientSecret := getEnv("CLIENT_SECRET", "foobar")
-	issuer := getEnv("ISSUER", "http://localhost:3000")
-	redirectURI := getEnv("REDIRECT_URI", "http://home.hanxi.cc:3180/auth/local-oidc/callback")
+	port := utils.GetEnv("PORT", "3000")
+	host := utils.GetEnv("HOST", "localhost")
+	systemSecret := []byte(utils.GetEnv("SYSTEM_SECRET", "some-cool-secret-that-is-32bytes"))
+	clientID := utils.GetEnv("CLIENT_ID", "my-client")
+	clientSecret := utils.GetEnv("CLIENT_SECRET", "foobar")
+	issuer := utils.GetEnv("ISSUER", "http://localhost:3000")
+	redirectURI := utils.GetEnv("REDIRECT_URI", "http://localhost:4000/auth/local-oidc/callback")
 
 	// Parse token lifespans
-	accessTokenLifetime := parseDuration(getEnv("ACCESS_TOKEN_LIFETIME", "3600"))
-	authorizeCodeLifetime := parseDuration(getEnv("AUTHORIZE_CODE_LIFETIME", "600"))
-	idTokenLifetime := parseDuration(getEnv("ID_TOKEN_LIFETIME", "3600"))
-	refreshTokenLifetime := parseDuration(getEnv("REFRESH_TOKEN_LIFETIME", "604800"))
+	accessTokenLifetime := parseDuration(utils.GetEnv("ACCESS_TOKEN_LIFETIME", "3600"))
+	authorizeCodeLifetime := parseDuration(utils.GetEnv("AUTHORIZE_CODE_LIFETIME", "600"))
+	idTokenLifetime := parseDuration(utils.GetEnv("ID_TOKEN_LIFETIME", "3600"))
+	refreshTokenLifetime := parseDuration(utils.GetEnv("REFRESH_TOKEN_LIFETIME", "604800"))
 
 	// Initialize stores
 	fositeStore := storage.NewExampleStore()
@@ -50,20 +50,9 @@ func main() {
 		log.Fatalf("Failed to register initial user: %v", err)
 	}
 
-	// Update the existing client configuration instead of creating a new one
-	// if existingClient, ok := fositeStore.Clients[clientID]; ok {
-	// 	if defaultClient, ok := existingClient.(*fosite.DefaultClient); ok {
-	// 		// Update the existing client with environment variables
-	// 		defaultClient.Secret = mustHash(clientSecret)
-	// 		defaultClient.RedirectURIs = []string{redirectURI}
-	// 		log.Printf("Updated existing client configuration for %s", clientID)
-	// 	}
-	// } else {
-	// Create new client if it doesn't exist
 	client := &fosite.DefaultClient{
-		ID:     clientID,
-		Secret: []byte(`$2a$10$IxMdI6d.LIRZPpSfEwNoeu4rY3FhDREsxFJXikcgdRRAStxUlsuEO`), // = "foobar"
-		// Secret:        mustHash(clientSecret),
+		ID:            clientID,
+		Secret:        mustHash(clientSecret),
 		RedirectURIs:  []string{redirectURI},
 		ResponseTypes: []string{"code"},
 		GrantTypes:    []string{"authorization_code", "refresh_token"},
@@ -124,14 +113,6 @@ func main() {
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
-}
-
-// getEnv gets environment variable with fallback
-func getEnv(key, fallback string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return fallback
 }
 
 // parseDuration parses duration from string (seconds)

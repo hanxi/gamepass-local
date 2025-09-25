@@ -10,9 +10,11 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/hanxi/gamepass-local/storage"
+	"github.com/hanxi/gamepass-local/utils"
 	"github.com/ory/fosite"
 	"github.com/ory/fosite/handler/openid"
 	"github.com/ory/fosite/token/jwt"
@@ -22,6 +24,9 @@ var (
 	userStore      *storage.UserStore
 	oauth2Provider fosite.OAuth2Provider
 	templates      *template.Template
+	// Store user consent decisions: userID -> clientID -> bool
+	userConsents  = make(map[string]map[string]bool)
+	consentsMutex sync.RWMutex
 )
 
 // InitUserHandlers initializes the handlers with dependencies
@@ -228,7 +233,7 @@ func AuthorizeHandler(w http.ResponseWriter, r *http.Request) {
 	session := &openid.DefaultSession{
 		Claims: &jwt.IDTokenClaims{
 			Subject:     user.ID,
-			Issuer:      "http://localhost:3000", // Update this to your actual issuer URL
+			Issuer:      utils.GetEnv("ISSUER", "http://localhost:3000"),
 			Audience:    []string{ar.GetClient().GetID()},
 			ExpiresAt:   time.Now().Add(time.Hour),
 			IssuedAt:    time.Now(),
@@ -507,10 +512,54 @@ func getUserFromSession(r *http.Request) *storage.User {
 }
 
 func hasUserConsented(r *http.Request) bool {
-	// Simple consent check - in a real app, you'd store consent decisions
-	// For this demo, we'll check if the request came from the consent page
-	consented := r.URL.Query().Get("consent") == "granted"
-	log.Printf("[hasUserConsented] Consent check result: %v (consent param: %s, referer: %s)",
-		consented, r.URL.Query().Get("consent"), r.Referer())
-	return consented
+	// Get user from session
+	user := getUserFromSession(r)
+	if user == nil {
+		log.Printf("[hasUserConsented] No user session found")
+		return false
+	}
+
+	// Get client ID from request
+	clientID := r.URL.Query().Get("client_id")
+	if clientID == "" {
+		log.Printf("[hasUserConsented] No client_id in request")
+		return false
+	}
+
+	// Check if user has previously consented to this client
+	consentsMutex.RLock()
+	userClientConsents, userExists := userConsents[user.ID]
+	if userExists {
+		consented, clientExists := userClientConsents[clientID]
+		consentsMutex.RUnlock()
+		if clientExists && consented {
+			log.Printf("[hasUserConsented] User %s has previously consented to client %s", user.ID, clientID)
+			return true
+		}
+	} else {
+		consentsMutex.RUnlock()
+	}
+
+	// Check if this is a fresh consent from the consent page
+	if r.URL.Query().Get("consent") == "granted" {
+		// Store the consent decision
+		storeUserConsent(user.ID, clientID, true)
+		log.Printf("[hasUserConsented] User %s granted fresh consent to client %s", user.ID, clientID)
+		return true
+	}
+
+	log.Printf("[hasUserConsented] User %s has not consented to client %s", user.ID, clientID)
+	return false
+}
+
+// storeUserConsent stores a user's consent decision for a specific client
+func storeUserConsent(userID, clientID string, consented bool) {
+	consentsMutex.Lock()
+	defer consentsMutex.Unlock()
+
+	if userConsents[userID] == nil {
+		userConsents[userID] = make(map[string]bool)
+	}
+	userConsents[userID][clientID] = consented
+	log.Printf("[storeUserConsent] Stored consent decision: user=%s, client=%s, consented=%v", userID, clientID, consented)
 }
