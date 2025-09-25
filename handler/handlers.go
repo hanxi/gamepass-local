@@ -248,6 +248,14 @@ func AuthorizeHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Create the response
 	log.Printf("[AuthorizeHandler] Creating authorize response with session: Username=%s, Subject=%s", session.Username, session.Subject)
+	log.Printf("[AuthorizeHandler] Client RedirectURIs: %v", ar.GetClient().GetRedirectURIs())
+	log.Printf("[AuthorizeHandler] Request RedirectURI: %s", ar.GetRedirectURI())
+	log.Printf("[AuthorizeHandler] Client ResponseTypes: %v", ar.GetClient().GetResponseTypes())
+	log.Printf("[AuthorizeHandler] Request ResponseTypes: %v", ar.GetResponseTypes())
+	log.Printf("[AuthorizeHandler] Client GrantTypes: %v", ar.GetClient().GetGrantTypes())
+	log.Printf("[AuthorizeHandler] Client Scopes: %v", ar.GetClient().GetScopes())
+	log.Printf("[AuthorizeHandler] Request Scopes: %v", ar.GetRequestedScopes())
+
 	response, err := oauth2Provider.NewAuthorizeResponse(ctx, ar, session)
 	if err != nil {
 		log.Printf("[AuthorizeHandler] Failed to create authorize response: %v", err)

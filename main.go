@@ -35,7 +35,7 @@ func main() {
 	clientID := getEnv("CLIENT_ID", "my-client")
 	clientSecret := getEnv("CLIENT_SECRET", "my-secret")
 	issuer := getEnv("ISSUER", "http://localhost:3000")
-	redirectURI := getEnv("REDIRECT_URI", "https://oidcdebugger.com/debug")
+	redirectURI := getEnv("REDIRECT_URI", "http://home.hanxi.cc:3180/auth/local-oidc/callback")
 
 	// Parse token lifespans
 	accessTokenLifetime := parseDuration(getEnv("ACCESS_TOKEN_LIFETIME", "3600"))
@@ -57,7 +57,7 @@ func main() {
 		ID:            clientID,
 		Secret:        mustHash(clientSecret),
 		RedirectURIs:  []string{redirectURI},
-		ResponseTypes: []string{"code", "id_token"},
+		ResponseTypes: []string{"code"},
 		GrantTypes:    []string{"authorization_code", "refresh_token"},
 		Scopes:        []string{"openid", "profile", "offline_access"},
 		Audience:      []string{issuer + "/api"},
@@ -96,7 +96,7 @@ func main() {
 			"userinfo_endpoint":                     issuer + "/userinfo",
 			"jwks_uri":                              issuer + "/.well-known/jwks.json",
 			"scopes_supported":                      []string{"openid", "profile", "offline_access"},
-			"response_types_supported":              []string{"code", "id_token"},
+			"response_types_supported":              []string{"code"},
 			"grant_types_supported":                 []string{"authorization_code", "refresh_token"},
 			"subject_types_supported":               []string{"public"},
 			"id_token_signing_alg_values_supported": []string{"HS256"},
