@@ -50,6 +50,8 @@ type MemoryStore struct {
 	// Public keys to check signature in auth grant jwt assertion.
 	IssuerPublicKeys map[string]IssuerPublicKeys
 	PARSessions      map[string]fosite.AuthorizeRequester
+	// User consent decisions: userID -> clientID -> bool
+	UserConsents map[string]map[string]bool
 
 	clientsMutex                sync.RWMutex
 	authorizeCodesMutex         sync.RWMutex
@@ -63,6 +65,7 @@ type MemoryStore struct {
 	refreshTokenRequestIDsMutex sync.RWMutex
 	issuerPublicKeysMutex       sync.RWMutex
 	parSessionsMutex            sync.RWMutex
+	userConsentsMutex           sync.RWMutex
 }
 
 func NewMemoryStore() *MemoryStore {
@@ -79,6 +82,7 @@ func NewMemoryStore() *MemoryStore {
 		BlacklistedJTIs:        make(map[string]time.Time),
 		IssuerPublicKeys:       make(map[string]IssuerPublicKeys),
 		PARSessions:            make(map[string]fosite.AuthorizeRequester),
+		UserConsents:           make(map[string]map[string]bool),
 	}
 }
 
@@ -96,26 +100,7 @@ type StoreRefreshToken struct {
 func NewExampleStore() *MemoryStore {
 	return &MemoryStore{
 		IDSessions: make(map[string]fosite.Requester),
-		Clients: map[string]fosite.Client{
-			"my-client": &fosite.DefaultClient{
-				ID:             "my-client",
-				Secret:         []byte(`$2a$10$IxMdI6d.LIRZPpSfEwNoeu4rY3FhDREsxFJXikcgdRRAStxUlsuEO`),            // = "foobar"
-				RotatedSecrets: [][]byte{[]byte(`$2y$10$X51gLxUQJ.hGw1epgHTE5u0bt64xM0COU7K9iAp.OFg8p2pUd.1zC `)}, // = "foobaz",
-				RedirectURIs:   []string{"http://home.hanxi.cc:3180/auth/local-oidc/callback"},
-				ResponseTypes:  []string{"code"},
-				GrantTypes:     []string{"authorization_code", "refresh_token"},
-				Scopes:         []string{"openid", "profile", "offline_access"},
-			},
-			"encoded:client": &fosite.DefaultClient{
-				ID:             "encoded:client",
-				Secret:         []byte(`$2a$10$A7M8b65dSSKGHF0H2sNkn.9Z0hT8U1Nv6OWPV3teUUaczXkVkxuDS`), // = "encoded&password"
-				RotatedSecrets: nil,
-				RedirectURIs:   []string{"http://localhost:3846/callback"},
-				ResponseTypes:  []string{"id_token", "code", "token", "id_token token", "code id_token", "code token", "code id_token token"},
-				GrantTypes:     []string{"implicit", "refresh_token", "authorization_code", "password", "client_credentials"},
-				Scopes:         []string{"fosite", "openid", "photos", "offline"},
-			},
-		},
+		Clients:    map[string]fosite.Client{},
 		Users: map[string]MemoryUserRelation{
 			"peter": {
 				// This store simply checks for equality, a real storage implementation would obviously use
@@ -133,6 +118,7 @@ func NewExampleStore() *MemoryStore {
 		BlacklistedJTIs:        map[string]time.Time{},
 		IssuerPublicKeys:       map[string]IssuerPublicKeys{},
 		PARSessions:            map[string]fosite.AuthorizeRequester{},
+		UserConsents:           map[string]map[string]bool{},
 	}
 }
 
@@ -540,5 +526,43 @@ func MaybeRollbackTx(ctx context.Context, storage interface{}) error {
 		return txnStorage.Rollback(ctx)
 	} else {
 		return nil
+	}
+}
+
+// HasUserConsented checks if a user has consented to a specific client
+func (s *MemoryStore) HasUserConsented(userID, clientID string) bool {
+	s.userConsentsMutex.RLock()
+	defer s.userConsentsMutex.RUnlock()
+
+	userClientConsents, userExists := s.UserConsents[userID]
+	if !userExists {
+		return false
+	}
+
+	consented, clientExists := userClientConsents[clientID]
+	return clientExists && consented
+}
+
+// StoreUserConsent stores a user's consent decision for a specific client
+func (s *MemoryStore) StoreUserConsent(userID, clientID string, consented bool) {
+	s.userConsentsMutex.Lock()
+	defer s.userConsentsMutex.Unlock()
+
+	if s.UserConsents[userID] == nil {
+		s.UserConsents[userID] = make(map[string]bool)
+	}
+	s.UserConsents[userID][clientID] = consented
+}
+
+// RevokeUserConsent revokes a user's consent for a specific client
+func (s *MemoryStore) RevokeUserConsent(userID, clientID string) {
+	s.userConsentsMutex.Lock()
+	defer s.userConsentsMutex.Unlock()
+
+	if userClientConsents, exists := s.UserConsents[userID]; exists {
+		delete(userClientConsents, clientID)
+		if len(userClientConsents) == 0 {
+			delete(s.UserConsents, userID)
+		}
 	}
 }

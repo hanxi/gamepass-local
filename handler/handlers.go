@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/hanxi/gamepass-local/storage"
@@ -24,15 +23,14 @@ var (
 	userStore      *storage.UserStore
 	oauth2Provider fosite.OAuth2Provider
 	templates      *template.Template
-	// Store user consent decisions: userID -> clientID -> bool
-	userConsents  = make(map[string]map[string]bool)
-	consentsMutex sync.RWMutex
+	fositeStore    *storage.MemoryStore
 )
 
 // InitUserHandlers initializes the handlers with dependencies
-func InitUserHandlers(us *storage.UserStore, provider fosite.OAuth2Provider) {
+func InitUserHandlers(us *storage.UserStore, provider fosite.OAuth2Provider, fs *storage.MemoryStore) {
 	userStore = us
 	oauth2Provider = provider
+	fositeStore = fs
 
 	// Load templates
 	var err error
@@ -527,39 +525,19 @@ func hasUserConsented(r *http.Request) bool {
 	}
 
 	// Check if user has previously consented to this client
-	consentsMutex.RLock()
-	userClientConsents, userExists := userConsents[user.ID]
-	if userExists {
-		consented, clientExists := userClientConsents[clientID]
-		consentsMutex.RUnlock()
-		if clientExists && consented {
-			log.Printf("[hasUserConsented] User %s has previously consented to client %s", user.ID, clientID)
-			return true
-		}
-	} else {
-		consentsMutex.RUnlock()
+	if fositeStore.HasUserConsented(user.ID, clientID) {
+		log.Printf("[hasUserConsented] User %s has previously consented to client %s", user.ID, clientID)
+		return true
 	}
 
 	// Check if this is a fresh consent from the consent page
 	if r.URL.Query().Get("consent") == "granted" {
 		// Store the consent decision
-		storeUserConsent(user.ID, clientID, true)
+		fositeStore.StoreUserConsent(user.ID, clientID, true)
 		log.Printf("[hasUserConsented] User %s granted fresh consent to client %s", user.ID, clientID)
 		return true
 	}
 
 	log.Printf("[hasUserConsented] User %s has not consented to client %s", user.ID, clientID)
 	return false
-}
-
-// storeUserConsent stores a user's consent decision for a specific client
-func storeUserConsent(userID, clientID string, consented bool) {
-	consentsMutex.Lock()
-	defer consentsMutex.Unlock()
-
-	if userConsents[userID] == nil {
-		userConsents[userID] = make(map[string]bool)
-	}
-	userConsents[userID][clientID] = consented
-	log.Printf("[storeUserConsent] Stored consent decision: user=%s, client=%s, consented=%v", userID, clientID, consented)
 }
