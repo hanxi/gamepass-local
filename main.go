@@ -77,7 +77,7 @@ func main() {
 	oauth2Provider := compose.ComposeAllEnabled(config, fositeStore, systemSecret)
 
 	// Initialize handlers
-	handler.InitUserHandlers(userStore, oauth2Provider)
+	handler.InitUserHandlers(userStore, oauth2Provider, fositeStore)
 
 	// Setup routes
 	http.HandleFunc("/register", handler.RegisterHandler)

@@ -147,6 +147,7 @@ func (s *FositeStore) CreateOpenIDConnectSession(ctx context.Context, authorizeC
 	return nil
 }
 
+// GetOpenIDConnectSession retrieves an OpenID Connect session
 func (s *FositeStore) GetOpenIDConnectSession(ctx context.Context, authorizeCode string, req fosite.Requester) (fosite.Requester, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
@@ -251,8 +252,8 @@ func (s *FositeStore) SetClientAssertionJWT(ctx context.Context, jti string, exp
 	// For this simple implementation, we'll just return nil (accept all)
 	// In a production environment, you would want to:
 	// 1. Store the JTI with its expiration time
-	// 2. Implement cleanup for expired JTIs
-	// 3. Prevent replay attacks by tracking used JTIs
+	// 2. Implement proper cleanup of expired JTIs
+	// 3. Check for replay attacks
 	return nil
 }
 
@@ -261,31 +262,35 @@ func (s *FositeStore) GetClientCredentials(ctx context.Context, id string) (fosi
 	return s.GetClient(ctx, id)
 }
 
-// IsJWTUsed checks if a JWT has been used before
+// IsJWTUsed checks if a JWT has been used before (for replay attack prevention)
 func (s *FositeStore) IsJWTUsed(ctx context.Context, jti string) (bool, error) {
-	// For this simple implementation, we'll always return false (not used)
+	// For this simple implementation, we'll assume no JWT has been used
+	// In production, you would store and check used JTIs
 	return false, nil
 }
 
-// MarkJWTUsedForTime marks a JWT as used for a specific time
+// MarkJWTUsedForTime marks a JWT as used for a specific time period
 func (s *FositeStore) MarkJWTUsedForTime(ctx context.Context, jti string, exp time.Time) error {
 	// For this simple implementation, we'll just return nil
+	// In production, you would store the JTI with its expiration time
 	return nil
 }
 
-// GetPublicKey returns the public key for JWT verification
+// GetPublicKey retrieves a public key for JWT verification
 func (s *FositeStore) GetPublicKey(ctx context.Context, issuer string, subject string, keyId string) (*jose.JSONWebKey, error) {
-	// For this simple implementation, we'll return an error indicating not found
+	// For this simple implementation, we'll return an error
+	// In production, you would implement proper key management
 	return nil, fosite.ErrNotFound
 }
 
-// GetPublicKeys returns public keys for JWT verification
+// GetPublicKeys retrieves public keys for JWT verification
 func (s *FositeStore) GetPublicKeys(ctx context.Context, issuer string, subject string) (*jose.JSONWebKeySet, error) {
-	// For this simple implementation, we'll return an error indicating not found
+	// For this simple implementation, we'll return an error
+	// In production, you would implement proper key management
 	return nil, fosite.ErrNotFound
 }
 
-// GetPublicKeyScopes returns the scopes associated with a public key
+// GetPublicKeyScopes retrieves scopes for a public key
 func (s *FositeStore) GetPublicKeyScopes(ctx context.Context, issuer string, subject string, keyId string) ([]string, error) {
 	// For this simple implementation, we'll return empty scopes
 	return []string{}, nil

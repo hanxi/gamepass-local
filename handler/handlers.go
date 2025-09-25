@@ -17,13 +17,15 @@ import (
 var (
 	userStore      *storage.UserStore
 	oauth2Provider fosite.OAuth2Provider
+	fositeStore    *storage.FositeStore
 	templates      *template.Template
 )
 
 // InitUserHandlers initializes the handlers with dependencies
-func InitUserHandlers(us *storage.UserStore, provider fosite.OAuth2Provider) {
+func InitUserHandlers(us *storage.UserStore, provider fosite.OAuth2Provider, fs *storage.FositeStore) {
 	userStore = us
 	oauth2Provider = provider
+	fositeStore = fs
 
 	// Load templates
 	var err error
