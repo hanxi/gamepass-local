@@ -42,8 +42,8 @@ func main() {
 	refreshTokenLifetime := parseDuration(utils.GetEnv("REFRESH_TOKEN_LIFETIME", "604800"))
 
 	// Initialize stores
-	fositeStore := storage.NewExampleStore()
 	userStore := storage.NewUserStore()
+	fositeStore := storage.NewMemoryStore(userStore)
 
 	// Register a dummy user for testing
 	if _, err := userStore.RegisterUser("testuser", "password123"); err != nil {

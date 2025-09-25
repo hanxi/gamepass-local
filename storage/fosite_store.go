@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/go-jose/go-jose/v3"
-	"github.com/google/uuid"
 
 	"github.com/ory/fosite"
 )
@@ -42,7 +41,7 @@ type MemoryStore struct {
 	AccessTokens    map[string]fosite.Requester
 	RefreshTokens   map[string]StoreRefreshToken
 	PKCES           map[string]fosite.Requester
-	Users           map[string]MemoryUserRelation
+	UserStore       *UserStore
 	BlacklistedJTIs map[string]time.Time
 	// In-memory request ID to token signatures
 	AccessTokenRequestIDs  map[string]string
@@ -59,7 +58,6 @@ type MemoryStore struct {
 	accessTokensMutex           sync.RWMutex
 	refreshTokensMutex          sync.RWMutex
 	pkcesMutex                  sync.RWMutex
-	usersMutex                  sync.RWMutex
 	blacklistedJTIsMutex        sync.RWMutex
 	accessTokenRequestIDsMutex  sync.RWMutex
 	refreshTokenRequestIDsMutex sync.RWMutex
@@ -68,7 +66,7 @@ type MemoryStore struct {
 	userConsentsMutex           sync.RWMutex
 }
 
-func NewMemoryStore() *MemoryStore {
+func NewMemoryStore(userStore *UserStore) *MemoryStore {
 	return &MemoryStore{
 		Clients:                make(map[string]fosite.Client),
 		AuthorizeCodes:         make(map[string]StoreAuthorizeCode),
@@ -76,7 +74,7 @@ func NewMemoryStore() *MemoryStore {
 		AccessTokens:           make(map[string]fosite.Requester),
 		RefreshTokens:          make(map[string]StoreRefreshToken),
 		PKCES:                  make(map[string]fosite.Requester),
-		Users:                  make(map[string]MemoryUserRelation),
+		UserStore:              userStore,
 		AccessTokenRequestIDs:  make(map[string]string),
 		RefreshTokenRequestIDs: make(map[string]string),
 		BlacklistedJTIs:        make(map[string]time.Time),
@@ -95,31 +93,6 @@ type StoreRefreshToken struct {
 	active               bool
 	accessTokenSignature string
 	fosite.Requester
-}
-
-func NewExampleStore() *MemoryStore {
-	return &MemoryStore{
-		IDSessions: make(map[string]fosite.Requester),
-		Clients:    map[string]fosite.Client{},
-		Users: map[string]MemoryUserRelation{
-			"peter": {
-				// This store simply checks for equality, a real storage implementation would obviously use
-				// a hashing algorithm for encrypting the user password.
-				Username: "peter",
-				Password: "secret",
-			},
-		},
-		AuthorizeCodes:         map[string]StoreAuthorizeCode{},
-		AccessTokens:           map[string]fosite.Requester{},
-		RefreshTokens:          map[string]StoreRefreshToken{},
-		PKCES:                  map[string]fosite.Requester{},
-		AccessTokenRequestIDs:  map[string]string{},
-		RefreshTokenRequestIDs: map[string]string{},
-		BlacklistedJTIs:        map[string]time.Time{},
-		IssuerPublicKeys:       map[string]IssuerPublicKeys{},
-		PARSessions:            map[string]fosite.AuthorizeRequester{},
-		UserConsents:           map[string]map[string]bool{},
-	}
 }
 
 func (s *MemoryStore) CreateOpenIDConnectSession(_ context.Context, authorizeCode string, requester fosite.Requester) error {
@@ -332,17 +305,11 @@ func (s *MemoryStore) DeleteRefreshTokenSession(_ context.Context, signature str
 }
 
 func (s *MemoryStore) Authenticate(_ context.Context, name string, secret string) (subject string, err error) {
-	s.usersMutex.RLock()
-	defer s.usersMutex.RUnlock()
-
-	rel, ok := s.Users[name]
-	if !ok {
-		return "", fosite.ErrNotFound
+	user, err := s.UserStore.AuthenticateUser(name, secret)
+	if err != nil {
+		return "", err
 	}
-	if rel.Password != secret {
-		return "", fosite.ErrNotFound.WithDebug("Invalid credentials")
-	}
-	return uuid.New().String(), nil
+	return user.ID, nil
 }
 
 func (s *MemoryStore) RevokeRefreshToken(ctx context.Context, requestID string) error {
