@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/json"
@@ -17,6 +18,8 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/ory/fosite"
 	"github.com/ory/fosite/compose"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -35,19 +38,56 @@ func main() {
 	issuer := utils.GetEnv("ISSUER", "http://localhost:3000")
 	redirectURI := utils.GetEnv("REDIRECT_URI", "http://localhost:4000/auth/local-oidc/callback")
 
+	// MongoDB configuration
+	mongoURI := utils.GetEnv("MONGODB_URI", "mongodb://localhost:27017")
+	mongoDatabase := utils.GetEnv("MONGODB_DATABASE", "gamepass_local")
+	mongoUserCollection := utils.GetEnv("MONGODB_COLLECTION_USERS", "users")
+	mongoConsentsCollection := utils.GetEnv("MONGODB_COLLECTION_CONSENTS", "user_consents")
+
 	// Parse token lifespans
 	accessTokenLifetime := parseDuration(utils.GetEnv("ACCESS_TOKEN_LIFETIME", "3600"))
 	authorizeCodeLifetime := parseDuration(utils.GetEnv("AUTHORIZE_CODE_LIFETIME", "600"))
 	idTokenLifetime := parseDuration(utils.GetEnv("ID_TOKEN_LIFETIME", "3600"))
 	refreshTokenLifetime := parseDuration(utils.GetEnv("REFRESH_TOKEN_LIFETIME", "604800"))
 
-	// Initialize stores
-	userStore := storage.NewUserStore()
+	// Initialize MongoDB connection
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	mongoClient, err := mongo.Connect(ctx, options.Client().ApplyURI(mongoURI))
+	if err != nil {
+		log.Fatalf("Failed to connect to MongoDB: %v", err)
+	}
+
+	// Test the connection
+	if err := mongoClient.Ping(ctx, nil); err != nil {
+		log.Fatalf("Failed to ping MongoDB: %v", err)
+	}
+
+	mongoDb := mongoClient.Database(mongoDatabase)
+
+	// Initialize UserStore with shared MongoDB connection
+	userStore, err := storage.NewUserStoreWithConnection(mongoClient, mongoDb, mongoUserCollection, mongoConsentsCollection)
+	if err != nil {
+		log.Fatalf("Failed to initialize user store: %v", err)
+	}
+	defer func() {
+		if err := userStore.Close(); err != nil {
+			log.Printf("Error closing user store: %v", err)
+		}
+	}()
+
 	fositeStore := storage.NewMemoryStore(userStore)
 
-	// Register a dummy user for testing
-	if _, err := userStore.RegisterUser("testuser", "password123"); err != nil {
-		log.Fatalf("Failed to register initial user: %v", err)
+	// Register a dummy user for testing (only if it doesn't exist)
+	if _, err := userStore.GetUser("testuser"); err != nil {
+		if _, err := userStore.RegisterUser("testuser", "password123"); err != nil {
+			log.Printf("Warning: Failed to register initial user: %v", err)
+		} else {
+			log.Printf("Created initial test user: testuser")
+		}
+	} else {
+		log.Printf("Test user already exists: testuser")
 	}
 
 	client := &fosite.DefaultClient{
@@ -77,7 +117,7 @@ func main() {
 	oauth2Provider := compose.ComposeAllEnabled(config, fositeStore, privateKey)
 
 	// Initialize handlers
-	handler.InitUserHandlers(userStore, oauth2Provider, fositeStore)
+	handler.InitUserHandlers(userStore, oauth2Provider)
 
 	// Setup routes
 	http.HandleFunc("/register", handler.RegisterHandler)
@@ -110,6 +150,8 @@ func main() {
 
 	serverAddr := host + ":" + port
 	log.Printf("Starting OIDC IdP server on http://%s", serverAddr)
+	log.Printf("Connected to MongoDB at %s, database: %s", mongoURI, mongoDatabase)
+	log.Printf("UserConsents are now stored in MongoDB collection: %s", mongoConsentsCollection)
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}

@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/go-jose/go-jose/v3"
-
 	"github.com/ory/fosite"
 )
 
@@ -49,8 +48,6 @@ type MemoryStore struct {
 	// Public keys to check signature in auth grant jwt assertion.
 	IssuerPublicKeys map[string]IssuerPublicKeys
 	PARSessions      map[string]fosite.AuthorizeRequester
-	// User consent decisions: userID -> clientID -> bool
-	UserConsents map[string]map[string]bool
 
 	clientsMutex                sync.RWMutex
 	authorizeCodesMutex         sync.RWMutex
@@ -63,7 +60,6 @@ type MemoryStore struct {
 	refreshTokenRequestIDsMutex sync.RWMutex
 	issuerPublicKeysMutex       sync.RWMutex
 	parSessionsMutex            sync.RWMutex
-	userConsentsMutex           sync.RWMutex
 }
 
 func NewMemoryStore(userStore *UserStore) *MemoryStore {
@@ -80,7 +76,6 @@ func NewMemoryStore(userStore *UserStore) *MemoryStore {
 		BlacklistedJTIs:        make(map[string]time.Time),
 		IssuerPublicKeys:       make(map[string]IssuerPublicKeys),
 		PARSessions:            make(map[string]fosite.AuthorizeRequester),
-		UserConsents:           make(map[string]map[string]bool),
 	}
 }
 
@@ -493,43 +488,5 @@ func MaybeRollbackTx(ctx context.Context, storage interface{}) error {
 		return txnStorage.Rollback(ctx)
 	} else {
 		return nil
-	}
-}
-
-// HasUserConsented checks if a user has consented to a specific client
-func (s *MemoryStore) HasUserConsented(userID, clientID string) bool {
-	s.userConsentsMutex.RLock()
-	defer s.userConsentsMutex.RUnlock()
-
-	userClientConsents, userExists := s.UserConsents[userID]
-	if !userExists {
-		return false
-	}
-
-	consented, clientExists := userClientConsents[clientID]
-	return clientExists && consented
-}
-
-// StoreUserConsent stores a user's consent decision for a specific client
-func (s *MemoryStore) StoreUserConsent(userID, clientID string, consented bool) {
-	s.userConsentsMutex.Lock()
-	defer s.userConsentsMutex.Unlock()
-
-	if s.UserConsents[userID] == nil {
-		s.UserConsents[userID] = make(map[string]bool)
-	}
-	s.UserConsents[userID][clientID] = consented
-}
-
-// RevokeUserConsent revokes a user's consent for a specific client
-func (s *MemoryStore) RevokeUserConsent(userID, clientID string) {
-	s.userConsentsMutex.Lock()
-	defer s.userConsentsMutex.Unlock()
-
-	if userClientConsents, exists := s.UserConsents[userID]; exists {
-		delete(userClientConsents, clientID)
-		if len(userClientConsents) == 0 {
-			delete(s.UserConsents, userID)
-		}
 	}
 }

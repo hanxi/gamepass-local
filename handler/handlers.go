@@ -23,14 +23,12 @@ var (
 	userStore      *storage.UserStore
 	oauth2Provider fosite.OAuth2Provider
 	templates      *template.Template
-	fositeStore    *storage.MemoryStore
 )
 
 // InitUserHandlers initializes the handlers with dependencies
-func InitUserHandlers(us *storage.UserStore, provider fosite.OAuth2Provider, fs *storage.MemoryStore) {
+func InitUserHandlers(us *storage.UserStore, provider fosite.OAuth2Provider) {
 	userStore = us
 	oauth2Provider = provider
-	fositeStore = fs
 
 	// Load templates
 	var err error
@@ -525,7 +523,7 @@ func hasUserConsented(r *http.Request) bool {
 	}
 
 	// Check if user has previously consented to this client
-	if fositeStore.HasUserConsented(user.ID, clientID) {
+	if userStore.HasUserConsented(user.ID, clientID) {
 		log.Printf("[hasUserConsented] User %s has previously consented to client %s", user.ID, clientID)
 		return true
 	}
@@ -533,7 +531,7 @@ func hasUserConsented(r *http.Request) bool {
 	// Check if this is a fresh consent from the consent page
 	if r.URL.Query().Get("consent") == "granted" {
 		// Store the consent decision
-		fositeStore.StoreUserConsent(user.ID, clientID, true)
+		userStore.StoreUserConsent(user.ID, clientID, true)
 		log.Printf("[hasUserConsented] User %s granted fresh consent to client %s", user.ID, clientID)
 		return true
 	}
