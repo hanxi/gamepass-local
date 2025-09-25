@@ -246,6 +246,21 @@ func AuthorizeHandler(w http.ResponseWriter, r *http.Request) {
 	response, err := oauth2Provider.NewAuthorizeResponse(ctx, ar, session)
 	if err != nil {
 		log.Printf("[AuthorizeHandler] Failed to create authorize response: %v", err)
+		log.Printf("[AuthorizeHandler] Error type: %T", err)
+
+		// Try to get more specific error information
+		if fositeErr, ok := err.(*fosite.RFC6749Error); ok {
+			log.Printf("[AuthorizeHandler] Fosite error code: %s", fositeErr.ErrorField)
+			log.Printf("[AuthorizeHandler] Fosite error description: %s", fositeErr.DescriptionField)
+			log.Printf("[AuthorizeHandler] Fosite error hint: %s", fositeErr.HintField)
+		}
+
+		// Log request details for debugging
+		log.Printf("[AuthorizeHandler] Request details - Client: %s, Scopes: %v, ResponseTypes: %v",
+			ar.GetClient().GetID(), ar.GetRequestedScopes(), ar.GetResponseTypes())
+		log.Printf("[AuthorizeHandler] Session details - Username: %s, Subject: %s",
+			session.Username, session.Subject)
+
 		oauth2Provider.WriteAuthorizeError(ctx, w, ar, err)
 		return
 	}
