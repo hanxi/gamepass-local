@@ -301,3 +301,21 @@ func (s *FositeStore) AddClient(client fosite.Client) {
 	defer s.mutex.Unlock()
 	s.clients[client.GetID()] = client
 }
+
+// AuthenticateClient authenticates a client using client credentials
+func (s *FositeStore) AuthenticateClient(ctx context.Context, clientID string, secret string) (fosite.Client, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	client, ok := s.clients[clientID]
+	if !ok {
+		return nil, fosite.ErrNotFound
+	}
+
+	// Compare the provided secret with the stored hashed secret
+	if err := bcrypt.CompareHashAndPassword(client.GetHashedSecret(), []byte(secret)); err != nil {
+		return nil, fosite.ErrInvalidClient
+	}
+
+	return client, nil
+}

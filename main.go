@@ -15,6 +15,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/ory/fosite"
 	"github.com/ory/fosite/compose"
+	fs "github.com/ory/fosite/storage"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -33,7 +34,7 @@ func main() {
 	host := getEnv("HOST", "localhost")
 	systemSecret := []byte(getEnv("SYSTEM_SECRET", "some-super-secret-key-that-is-32-bytes-long-for-security"))
 	clientID := getEnv("CLIENT_ID", "my-client")
-	clientSecret := getEnv("CLIENT_SECRET", "my-secret")
+	clientSecret := `$2a$10$IxMdI6d.LIRZPpSfEwNoeu4rY3FhDREsxFJXikcgdRRAStxUlsuEO` // = "foobar"
 	issuer := getEnv("ISSUER", "http://localhost:3000")
 	redirectURI := getEnv("REDIRECT_URI", "http://home.hanxi.cc:3180/auth/local-oidc/callback")
 
@@ -44,7 +45,8 @@ func main() {
 	refreshTokenLifetime := parseDuration(getEnv("REFRESH_TOKEN_LIFETIME", "604800"))
 
 	// Initialize stores
-	fositeStore = storage.NewFositeStore()
+	// fositeStore = storage.NewFositeStore()
+	fositeStore := fs.NewExampleStore()
 	userStore := storage.NewUserStore()
 
 	// Register a dummy user for testing
@@ -60,9 +62,8 @@ func main() {
 		ResponseTypes: []string{"code"},
 		GrantTypes:    []string{"authorization_code", "refresh_token"},
 		Scopes:        []string{"openid", "profile", "offline_access"},
-		Audience:      []string{issuer + "/api"},
 	}
-	fositeStore.AddClient(client)
+	fositeStore.Clients[clientID] = client
 
 	// Fosite configuration
 	config := &fosite.Config{
@@ -77,7 +78,7 @@ func main() {
 	oauth2Provider := compose.ComposeAllEnabled(config, fositeStore, systemSecret)
 
 	// Initialize handlers
-	handler.InitUserHandlers(userStore, oauth2Provider, fositeStore)
+	handler.InitUserHandlers(userStore, oauth2Provider)
 
 	// Setup routes
 	http.HandleFunc("/register", handler.RegisterHandler)
