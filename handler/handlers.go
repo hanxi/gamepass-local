@@ -14,6 +14,8 @@ import (
 
 	"github.com/hanxi/gamepass-local/storage"
 	"github.com/ory/fosite"
+	"github.com/ory/fosite/handler/openid"
+	"github.com/ory/fosite/token/jwt"
 )
 
 var (
@@ -212,23 +214,40 @@ func AuthorizeHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("[AuthorizeHandler] User found in session: %s (ID: %s)", user.Username, user.ID)
 
+	// Handle authorization request first
+	ar, err := oauth2Provider.NewAuthorizeRequest(ctx, r)
+	if err != nil {
+		log.Printf("[AuthorizeHandler] Failed to create authorize request: %v", err)
+		oauth2Provider.WriteAuthorizeError(ctx, w, ar, err)
+		return
+	}
+
+	log.Printf("[AuthorizeHandler] Authorize request created for client: %s, scopes: %v", ar.GetClient().GetID(), ar.GetRequestedScopes())
+
 	// Create OAuth2 session with OpenID Connect support
-	session := &fosite.DefaultSession{
+	session := &openid.DefaultSession{
+		Claims: &jwt.IDTokenClaims{
+			Subject:     user.ID,
+			Issuer:      "http://localhost:3000", // Update this to your actual issuer URL
+			Audience:    []string{ar.GetClient().GetID()},
+			ExpiresAt:   time.Now().Add(time.Hour),
+			IssuedAt:    time.Now(),
+			RequestedAt: time.Now(),
+			AuthTime:    time.Now(),
+			Extra: map[string]interface{}{
+				"name":  user.Name,
+				"email": user.Email,
+			},
+		},
+		Headers:  &jwt.Headers{},
 		Username: user.Username,
 		Subject:  user.ID,
-		Extra: map[string]interface{}{
-			"name":  user.Name,
-			"email": user.Email,
-		},
 	}
 
 	// Set the ExpiresAt for the session to ensure it's valid
 	session.SetExpiresAt(fosite.AccessToken, time.Now().Add(time.Hour))
 	session.SetExpiresAt(fosite.RefreshToken, time.Now().Add(24*time.Hour))
 	session.SetExpiresAt(fosite.AuthorizeCode, time.Now().Add(10*time.Minute))
-
-	// Handle authorization request
-	ar, err := oauth2Provider.NewAuthorizeRequest(ctx, r)
 	if err != nil {
 		log.Printf("[AuthorizeHandler] Failed to create authorize request: %v", err)
 		oauth2Provider.WriteAuthorizeError(ctx, w, ar, err)
@@ -268,17 +287,37 @@ func AuthorizeHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[AuthorizeHandler] Failed to create authorize response: %v", err)
 		log.Printf("[AuthorizeHandler] Error type: %T", err)
 
-		// Try to get more specific error information
+		// Try to get more specific error information from the original error
 		if fositeErr, ok := err.(*fosite.RFC6749Error); ok {
-			log.Printf("[AuthorizeHandler] Fosite error code: %s", fositeErr.ErrorField)
-			log.Printf("[AuthorizeHandler] Fosite error description: %s", fositeErr.DescriptionField)
-			log.Printf("[AuthorizeHandler] Fosite error hint: %s", fositeErr.HintField)
+			log.Printf("[AuthorizeHandler] Direct Fosite error code: '%s'", fositeErr.ErrorField)
+			log.Printf("[AuthorizeHandler] Direct Fosite error description: '%s'", fositeErr.DescriptionField)
+			log.Printf("[AuthorizeHandler] Direct Fosite error hint: '%s'", fositeErr.HintField)
+			log.Printf("[AuthorizeHandler] Direct Fosite error debug: '%s'", fositeErr.DebugField)
 		}
 
 		// Try to unwrap the error to get the root cause
-		if unwrapped := errors.Unwrap(err); unwrapped != nil {
-			log.Printf("[AuthorizeHandler] Unwrapped error: %v", unwrapped)
-			log.Printf("[AuthorizeHandler] Unwrapped error type: %T", unwrapped)
+		currentErr := err
+		depth := 0
+		for currentErr != nil && depth < 10 {
+			log.Printf("[AuthorizeHandler] Error at depth %d: %v (type: %T)", depth, currentErr, currentErr)
+
+			// Check if this level is a fosite error
+			if fositeErr, ok := currentErr.(*fosite.RFC6749Error); ok {
+				log.Printf("[AuthorizeHandler] Found Fosite error at depth %d:", depth)
+				log.Printf("[AuthorizeHandler]   - Error code: '%s'", fositeErr.ErrorField)
+				log.Printf("[AuthorizeHandler]   - Description: '%s'", fositeErr.DescriptionField)
+				log.Printf("[AuthorizeHandler]   - Hint: '%s'", fositeErr.HintField)
+				log.Printf("[AuthorizeHandler]   - Debug: '%s'", fositeErr.DebugField)
+				log.Printf("[AuthorizeHandler]   - Status code: %d", fositeErr.CodeField)
+			}
+
+			// Try to unwrap further
+			if unwrapped := errors.Unwrap(currentErr); unwrapped != nil {
+				currentErr = unwrapped
+				depth++
+			} else {
+				break
+			}
 		}
 
 		// Try to get the root cause using errors.Cause if available
@@ -470,7 +509,7 @@ func getUserFromSession(r *http.Request) *storage.User {
 func hasUserConsented(r *http.Request) bool {
 	// Simple consent check - in a real app, you'd store consent decisions
 	// For this demo, we'll check if the request came from the consent page
-	consented := r.URL.Query().Get("consent") == "granted" || r.Referer() == "http://localhost:3000/consent"
+	consented := r.URL.Query().Get("consent") == "granted"
 	log.Printf("[hasUserConsented] Consent check result: %v (consent param: %s, referer: %s)",
 		consented, r.URL.Query().Get("consent"), r.Referer())
 	return consented

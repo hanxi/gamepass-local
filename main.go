@@ -2,6 +2,8 @@
 package main
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -27,9 +29,9 @@ func main() {
 	// Get configuration from environment variables
 	port := getEnv("PORT", "3000")
 	host := getEnv("HOST", "localhost")
-	systemSecret := []byte(getEnv("SYSTEM_SECRET", "some-super-secret-key-that-is-32-bytes-long-for-security"))
+	systemSecret := []byte(getEnv("SYSTEM_SECRET", "some-cool-secret-that-is-32bytes"))
 	clientID := getEnv("CLIENT_ID", "my-client")
-	clientSecret := getEnv("CLIENT_SECRET", "foobar")
+	// clientSecret := getEnv("CLIENT_SECRET", "foobar")
 	issuer := getEnv("ISSUER", "http://localhost:3000")
 	redirectURI := getEnv("REDIRECT_URI", "http://home.hanxi.cc:3180/auth/local-oidc/callback")
 
@@ -49,26 +51,27 @@ func main() {
 	}
 
 	// Update the existing client configuration instead of creating a new one
-	if existingClient, ok := fositeStore.Clients[clientID]; ok {
-		if defaultClient, ok := existingClient.(*fosite.DefaultClient); ok {
-			// Update the existing client with environment variables
-			defaultClient.Secret = mustHash(clientSecret)
-			defaultClient.RedirectURIs = []string{redirectURI}
-			log.Printf("Updated existing client configuration for %s", clientID)
-		}
-	} else {
-		// Create new client if it doesn't exist
-		client := &fosite.DefaultClient{
-			ID:            clientID,
-			Secret:        mustHash(clientSecret),
-			RedirectURIs:  []string{redirectURI},
-			ResponseTypes: []string{"code"},
-			GrantTypes:    []string{"authorization_code", "refresh_token"},
-			Scopes:        []string{"openid", "profile", "offline_access"},
-		}
-		fositeStore.Clients[clientID] = client
-		log.Printf("Created new client configuration for %s", clientID)
+	// if existingClient, ok := fositeStore.Clients[clientID]; ok {
+	// 	if defaultClient, ok := existingClient.(*fosite.DefaultClient); ok {
+	// 		// Update the existing client with environment variables
+	// 		defaultClient.Secret = mustHash(clientSecret)
+	// 		defaultClient.RedirectURIs = []string{redirectURI}
+	// 		log.Printf("Updated existing client configuration for %s", clientID)
+	// 	}
+	// } else {
+	// Create new client if it doesn't exist
+	client := &fosite.DefaultClient{
+		ID:     clientID,
+		Secret: []byte(`$2a$10$IxMdI6d.LIRZPpSfEwNoeu4rY3FhDREsxFJXikcgdRRAStxUlsuEO`), // = "foobar"
+		// Secret:        mustHash(clientSecret),
+		RedirectURIs:  []string{redirectURI},
+		ResponseTypes: []string{"code"},
+		GrantTypes:    []string{"authorization_code", "refresh_token"},
+		Scopes:        []string{"openid", "profile", "offline_access"},
 	}
+	fositeStore.Clients[clientID] = client
+	log.Printf("Created new client configuration for %s", clientID)
+	// }
 
 	// Fosite configuration
 	config := &fosite.Config{
@@ -77,10 +80,12 @@ func main() {
 		IDTokenLifespan:       idTokenLifetime,
 		RefreshTokenLifespan:  refreshTokenLifetime,
 		ScopeStrategy:         fosite.ExactScopeStrategy,
+		GlobalSecret:          systemSecret,
 	}
 
 	// Create the Fosite provider
-	oauth2Provider := compose.ComposeAllEnabled(config, fositeStore, systemSecret)
+	privateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
+	oauth2Provider := compose.ComposeAllEnabled(config, fositeStore, privateKey)
 
 	// Initialize handlers
 	handler.InitUserHandlers(userStore, oauth2Provider)
