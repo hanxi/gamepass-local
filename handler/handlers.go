@@ -175,7 +175,14 @@ func ConsentHandler(w http.ResponseWriter, r *http.Request) {
 		if r.FormValue("consent") == "allow" {
 			log.Printf("[ConsentHandler] User %s granted consent", user.Username)
 			// Redirect back to authorize endpoint with consent
-			authorizeURL := "/authorize?" + r.FormValue("query")
+			query := r.FormValue("query")
+			var authorizeURL string
+			if query != "" {
+				authorizeURL = "/authorize?" + query + "&consent=granted"
+			} else {
+				authorizeURL = "/authorize?consent=granted"
+			}
+			log.Printf("[ConsentHandler] Redirecting to: %s", authorizeURL)
 			http.Redirect(w, r, authorizeURL, http.StatusSeeOther)
 		} else {
 			log.Printf("[ConsentHandler] User %s denied consent", user.Username)
