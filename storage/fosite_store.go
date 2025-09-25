@@ -38,9 +38,10 @@ func (s *FositeStore) GetClient(ctx context.Context, id string) (fosite.Client, 
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
+	// First try instance clients
 	client, ok := s.clients[id]
-	if !ok {
-		return nil, fosite.ErrNotFound
+	if ok {
+		return client, nil
 	}
 	return client, nil
 }
@@ -290,9 +291,8 @@ func (s *FositeStore) GetPublicKeyScopes(ctx context.Context, issuer string, sub
 	return []string{}, nil
 }
 
-// Public property for clients access
-var Clients map[string]fosite.Client
-
-func init() {
-	Clients = make(map[string]fosite.Client)
+func (s *FositeStore) AddClient(client fosite.Client) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	s.clients[client.GetID()] = client
 }

@@ -62,7 +62,7 @@ func main() {
 		Scopes:        []string{"openid", "profile", "offline_access"},
 		Audience:      []string{issuer + "/api"},
 	}
-	storage.Clients[clientID] = client
+	fositeStore.AddClient(client)
 
 	// Fosite configuration
 	config := &fosite.Config{
