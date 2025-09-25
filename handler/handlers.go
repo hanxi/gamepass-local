@@ -257,7 +257,25 @@ func AuthorizeHandler(w http.ResponseWriter, r *http.Request) {
 // TokenHandler handles OAuth2 token exchange
 func TokenHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[TokenHandler] %s request to %s", r.Method, r.URL.String())
+	log.Printf("[TokenHandler] Headers: %v", r.Header)
+	log.Printf("[TokenHandler] Form values: %v", r.Form)
+
 	ctx := context.Background()
+
+	// Parse form to get parameters
+	if err := r.ParseForm(); err != nil {
+		log.Printf("[TokenHandler] Failed to parse form: %v", err)
+	}
+
+	grantType := r.FormValue("grant_type")
+	code := r.FormValue("code")
+	clientID := r.FormValue("client_id")
+	redirectURI := r.FormValue("redirect_uri")
+
+	log.Printf("[TokenHandler] Grant type: %s", grantType)
+	log.Printf("[TokenHandler] Authorization code: %s", code)
+	log.Printf("[TokenHandler] Client ID: %s", clientID)
+	log.Printf("[TokenHandler] Redirect URI: %s", redirectURI)
 
 	// Create session
 	session := &fosite.DefaultSession{}
@@ -266,6 +284,15 @@ func TokenHandler(w http.ResponseWriter, r *http.Request) {
 	ar, err := oauth2Provider.NewAccessRequest(ctx, r, session)
 	if err != nil {
 		log.Printf("[TokenHandler] Failed to create access request: %v", err)
+		log.Printf("[TokenHandler] Error type: %T", err)
+
+		// Try to get more specific error information
+		if fositeErr, ok := err.(*fosite.RFC6749Error); ok {
+			log.Printf("[TokenHandler] Fosite error code: %s", fositeErr.ErrorField)
+			log.Printf("[TokenHandler] Fosite error description: %s", fositeErr.DescriptionField)
+			log.Printf("[TokenHandler] Fosite error hint: %s", fositeErr.HintField)
+		}
+
 		oauth2Provider.WriteAccessError(ctx, w, ar, err)
 		return
 	}
@@ -276,6 +303,14 @@ func TokenHandler(w http.ResponseWriter, r *http.Request) {
 	response, err := oauth2Provider.NewAccessResponse(ctx, ar)
 	if err != nil {
 		log.Printf("[TokenHandler] Failed to create access response: %v", err)
+		log.Printf("[TokenHandler] Error type: %T", err)
+
+		if fositeErr, ok := err.(*fosite.RFC6749Error); ok {
+			log.Printf("[TokenHandler] Fosite error code: %s", fositeErr.ErrorField)
+			log.Printf("[TokenHandler] Fosite error description: %s", fositeErr.DescriptionField)
+			log.Printf("[TokenHandler] Fosite error hint: %s", fositeErr.HintField)
+		}
+
 		oauth2Provider.WriteAccessError(ctx, w, ar, err)
 		return
 	}
