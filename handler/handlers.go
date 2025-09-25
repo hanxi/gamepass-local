@@ -85,9 +85,11 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		message := r.URL.Query().Get("message")
-		log.Printf("[LoginHandler] GET request, message: %s", message)
+		redirectURL := r.URL.Query().Get("redirect_url")
+		log.Printf("[LoginHandler] GET request, message: %s, redirect_url: %s", message, redirectURL)
 		templates.ExecuteTemplate(w, "login.html", map[string]string{
-			"Message": message,
+			"Message":     message,
+			"RedirectURL": redirectURL,
 		})
 		return
 	}
