@@ -210,10 +210,14 @@ func AuthorizeHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("[AuthorizeHandler] User found in session: %s (ID: %s)", user.Username, user.ID)
 
-	// Create OAuth2 session
+	// Create OAuth2 session with OpenID Connect support
 	session := &fosite.DefaultSession{
 		Username: user.Username,
 		Subject:  user.ID,
+		Extra: map[string]interface{}{
+			"name":  user.Name,
+			"email": user.Email,
+		},
 	}
 
 	// Handle authorization request
@@ -243,6 +247,7 @@ func AuthorizeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create the response
+	log.Printf("[AuthorizeHandler] Creating authorize response with session: Username=%s, Subject=%s", session.Username, session.Subject)
 	response, err := oauth2Provider.NewAuthorizeResponse(ctx, ar, session)
 	if err != nil {
 		log.Printf("[AuthorizeHandler] Failed to create authorize response: %v", err)
@@ -273,14 +278,17 @@ func AuthorizeHandler(w http.ResponseWriter, r *http.Request) {
 func TokenHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[TokenHandler] %s request to %s", r.Method, r.URL.String())
 	log.Printf("[TokenHandler] Headers: %v", r.Header)
-	log.Printf("[TokenHandler] Form values: %v", r.Form)
 
 	ctx := context.Background()
 
 	// Parse form to get parameters
 	if err := r.ParseForm(); err != nil {
 		log.Printf("[TokenHandler] Failed to parse form: %v", err)
+		http.Error(w, "Failed to parse form", http.StatusBadRequest)
+		return
 	}
+
+	log.Printf("[TokenHandler] Form values: %v", r.Form)
 
 	grantType := r.FormValue("grant_type")
 	code := r.FormValue("code")
@@ -291,6 +299,11 @@ func TokenHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[TokenHandler] Authorization code: %s", code)
 	log.Printf("[TokenHandler] Client ID: %s", clientID)
 	log.Printf("[TokenHandler] Redirect URI: %s", redirectURI)
+
+	// Debug: Print all form values
+	for key, values := range r.Form {
+		log.Printf("[TokenHandler] Form field %s: %v", key, values)
+	}
 
 	// Create session
 	session := &fosite.DefaultSession{}
@@ -366,7 +379,7 @@ func UserInfoHandler(w http.ResponseWriter, r *http.Request) {
 		userID := ar.GetSession().GetSubject()
 		log.Printf("[UserInfoHandler] Getting user info for userID: %s", userID)
 
-		_, err = userStore.GetUserByID(userID)
+		user, err = userStore.GetUserByID(userID)
 		if err != nil {
 			log.Printf("[UserInfoHandler] Failed to get user by ID %s: %v", userID, err)
 			w.WriteHeader(http.StatusNotFound)

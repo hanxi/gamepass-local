@@ -43,7 +43,7 @@ func (s *FositeStore) GetClient(ctx context.Context, id string) (fosite.Client, 
 	if ok {
 		return client, nil
 	}
-	return client, nil
+	return nil, fosite.ErrNotFound
 }
 
 // Authorization code storage interface
