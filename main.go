@@ -15,7 +15,6 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/ory/fosite"
 	"github.com/ory/fosite/compose"
-	fs "github.com/ory/fosite/storage"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -30,7 +29,7 @@ func main() {
 	host := getEnv("HOST", "localhost")
 	systemSecret := []byte(getEnv("SYSTEM_SECRET", "some-super-secret-key-that-is-32-bytes-long-for-security"))
 	clientID := getEnv("CLIENT_ID", "my-client")
-	clientSecret := `$2a$10$IxMdI6d.LIRZPpSfEwNoeu4rY3FhDREsxFJXikcgdRRAStxUlsuEO` // = "foobar"
+	clientSecret := getEnv("CLIENT_SECRET", "foobar")
 	issuer := getEnv("ISSUER", "http://localhost:3000")
 	redirectURI := getEnv("REDIRECT_URI", "http://home.hanxi.cc:3180/auth/local-oidc/callback")
 
@@ -41,7 +40,7 @@ func main() {
 	refreshTokenLifetime := parseDuration(getEnv("REFRESH_TOKEN_LIFETIME", "604800"))
 
 	// Initialize stores
-	fositeStore := fs.NewExampleStore()
+	fositeStore := storage.NewExampleStore()
 	userStore := storage.NewUserStore()
 
 	// Register a dummy user for testing
